@@ -5,6 +5,7 @@ import es.unizar.urlshortener.core.ShortUrlProperties
 import es.unizar.urlshortener.core.usecases.CreateShortUrlUseCase
 import es.unizar.urlshortener.core.usecases.LogClickUseCase
 import es.unizar.urlshortener.core.usecases.RedirectUseCase
+import es.unizar.urlshortener.core.usecases.CreateQrUseCase
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.hateoas.server.mvc.linkTo
 import org.springframework.http.HttpHeaders
@@ -15,7 +16,11 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.core.io.ByteArrayResource
+import org.springframework.http.HttpHeaders.CONTENT_DISPOSITION
+import org.springframework.http.MediaType.IMAGE_PNG_VALUE
 import java.net.URI
+
 
 /**
  * The specification of the controller.
@@ -35,6 +40,11 @@ interface UrlShortenerController {
      * **Note**: Delivery of use case [CreateShortUrlUseCase].
      */
     fun shortener(data: ShortUrlDataIn, request: HttpServletRequest): ResponseEntity<ShortUrlDataOut>
+
+    /**
+     * Generates a qr code for the short url identified by its [id].
+     */
+    fun qr(id: String, request: HttpServletRequest): ResponseEntity<ByteArrayResource>
 }
 
 /**
@@ -42,7 +52,8 @@ interface UrlShortenerController {
  */
 data class ShortUrlDataIn(
     val url: String,
-    val sponsor: String? = null
+    val sponsor: String? = null,
+    val qr: Boolean
 )
 
 /**
@@ -62,7 +73,8 @@ data class ShortUrlDataOut(
 class UrlShortenerControllerImpl(
     val redirectUseCase: RedirectUseCase,
     val logClickUseCase: LogClickUseCase,
-    val createShortUrlUseCase: CreateShortUrlUseCase
+    val createShortUrlUseCase: CreateShortUrlUseCase,
+    val createQrUseCase: CreateQrUseCase
 ) : UrlShortenerController {
 
     @GetMapping("/{id:(?!api|index).*}")
@@ -76,22 +88,58 @@ class UrlShortenerControllerImpl(
 
     @PostMapping("/api/link", consumes = [MediaType.APPLICATION_FORM_URLENCODED_VALUE])
     override fun shortener(data: ShortUrlDataIn, request: HttpServletRequest): ResponseEntity<ShortUrlDataOut> =
+    
         createShortUrlUseCase.create(
             url = data.url,
             data = ShortUrlProperties(
                 ip = request.remoteAddr,
-                sponsor = data.sponsor
+                sponsor = data.sponsor,
+                qr = data.qr
             )
         ).let {
             val h = HttpHeaders()
             val url = linkTo<UrlShortenerControllerImpl> { redirectTo(it.hash, request) }.toUri()
+            val qr = linkTo<UrlShortenerControllerImpl> { qr(it.hash, request) }.toUri()
+            
+            // Generar el código QR y asociarlo con la ShortUrl
+            if (data.qr){
+                createQrUseCase.generate(data.url, it.hash)
+            }
+
             h.location = url
             val response = ShortUrlDataOut(
                 url = url,
-                properties = mapOf(
-                    "safe" to it.properties.safe
-                )
+                properties = when (data.qr) {
+                    null -> mapOf(
+                        "safe" to it.properties.safe
+                    ) // Si data.qr es nulo, crea un mapa solo con la propiedad "safe"
+                    else -> mapOf(
+                        "safe" to it.properties.safe,
+                        "qr" to qr
+                    )
+                }
+                
             )
             ResponseEntity<ShortUrlDataOut>(response, h, HttpStatus.CREATED)
         }
+
+    /*
+     *  Get the QR code of a short url identified by its [id].
+     */  
+
+    @GetMapping("/{id:(?!api|index).*}/qr")
+    override fun qr(@PathVariable id: String, request: HttpServletRequest): ResponseEntity<ByteArrayResource> =
+        createQrUseCase.get(id).let {
+            println("QR get: " + it)
+            val h = HttpHeaders()
+            h.set(HttpHeaders.CONTENT_TYPE, IMAGE_PNG_VALUE)
+            //h.set(CONTENT_DISPOSITION, "attachment; filename=qr.png")
+            println("QR get: " + ByteArrayResource(it, IMAGE_PNG_VALUE))
+            ResponseEntity<ByteArrayResource>(ByteArrayResource(it, IMAGE_PNG_VALUE), h, HttpStatus.OK)
+        }
+
+
+    
+
+    
 }
