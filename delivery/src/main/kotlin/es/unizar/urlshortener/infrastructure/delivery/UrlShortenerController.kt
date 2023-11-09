@@ -128,17 +128,18 @@ class UrlShortenerControllerImpl(
      */  
 
     @GetMapping("/{id:(?!api|index).*}/qr")
-    override fun qr(@PathVariable id: String, request: HttpServletRequest): ResponseEntity<ByteArrayResource> =
-        createQrUseCase.get(id).let {
-            println("QR get: " + it)
+    override fun qr(@PathVariable id: String, request: HttpServletRequest): ResponseEntity<ByteArrayResource> {
+        println("QR get acabo de llegar: " + id)
+        if (createQrUseCase.get(id) != null){
             val h = HttpHeaders()
             h.set(HttpHeaders.CONTENT_TYPE, IMAGE_PNG_VALUE)
             //h.set(CONTENT_DISPOSITION, "attachment; filename=qr.png")
-            println("QR get: " + ByteArrayResource(it, IMAGE_PNG_VALUE))
-            ResponseEntity<ByteArrayResource>(ByteArrayResource(it, IMAGE_PNG_VALUE), h, HttpStatus.OK)
+            println("QR get: " + ByteArrayResource(createQrUseCase.get(id) , IMAGE_PNG_VALUE))
+            return ResponseEntity<ByteArrayResource>(ByteArrayResource(createQrUseCase.get(id) , IMAGE_PNG_VALUE), h, HttpStatus.OK)
+        } else {
+            return ResponseEntity<ByteArrayResource>(ByteArrayResource(ByteArray(0), IMAGE_PNG_VALUE), HttpStatus.NOT_FOUND)
         }
-
-
+    }
     
 
     

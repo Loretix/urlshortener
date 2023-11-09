@@ -26,29 +26,37 @@ class CreateQrUseCaseImpl(
 
         // SI su existe quiero que se genere el QR y se guarde en su.properties.qr
 
-        shortUrlRepository.findByKey(id)?.let {
-            val qrGenerated = qrService.generateQr(url)
-            qrRepository.put(id, qrGenerated)
-            
+        val su = shortUrlRepository.findByKey(id)
+
+        if( su != null ){
+            println("COJO EL IDDD " + id + url)
             //properties=ShortUrlProperties(ip=127.0.0.1, sponsor=null, safe=true, owner=null, country=null, qr=null))
             //shortUrlRepository.save(it.copy(properties = it.properties.copy(qrGenerated = qrGenerated.toString())))
-            
-        } ?: throw RedirectionNotFound(id)
-        
+            val qrGenerated = qrService.generateQr(url)
+            qrRepository.put(id, qrGenerated)
+        } else {
+            throw RedirectionNotFound(id)
+        } 
     }
 
     // Get the QR code from a given id
-    override fun get(id: String): ByteArray =
-            shortUrlRepository.findByKey(id)?.let {
-                println("QRRR PROPERTIE VALUE" + it.properties.qr)
-                if (it.properties.qr == true ) {
+    override fun get(id: String): ByteArray {
+        println("COJO EL IDDD gett" + id)
+        val su = shortUrlRepository.findByKey(id)
+        if (su != null){
+                if (su.properties.qr == true ) {
                     //println("QR: " + it.properties.qrGenerated)
                     //it.properties.qrGenerated.toByteArray()
-                    qrRepository.get(id)!!
+                   return qrRepository.get(id)!!
                 } else {
                     throw RedirectionNotFound(id)
                 }
-        } ?: throw RedirectionNotFound(id)
+        } else{
+            throw RedirectionNotFound(id)
+        }
+
+    }
+            
     
         
 }
