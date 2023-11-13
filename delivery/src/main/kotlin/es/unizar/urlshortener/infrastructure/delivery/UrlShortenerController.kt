@@ -83,6 +83,7 @@ class UrlShortenerControllerImpl(
             logClickUseCase.logClick(id, ClickProperties(ip = request.remoteAddr))
             val h = HttpHeaders()
             h.location = URI.create(it.target)
+            println("status: " + it.mode)
             ResponseEntity<Unit>(h, HttpStatus.valueOf(it.mode))
         }
 
@@ -99,27 +100,26 @@ class UrlShortenerControllerImpl(
         ).let {
             val h = HttpHeaders()
             val url = linkTo<UrlShortenerControllerImpl> { redirectTo(it.hash, request) }.toUri()
-            val qr = linkTo<UrlShortenerControllerImpl> { qr(it.hash, request) }.toUri()
-            
+            h.location = url
+            val qr: URI
             // Generar el código QR y asociarlo con la ShortUrl
             if (data.qr){
                 createQrUseCase.generate(data.url, it.hash)
+                qr = linkTo<UrlShortenerControllerImpl> { qr(it.hash, request) }.toUri()
+            } else {
+                // NO hay uri
+                qr = URI("")
             }
 
-            h.location = url
+            
             val response = ShortUrlDataOut(
                 url = url,
-                properties = when (data.qr) {
-                    null -> mapOf(
-                        "safe" to it.properties.safe
-                    ) // Si data.qr es nulo, crea un mapa solo con la propiedad "safe"
-                    else -> mapOf(
-                        "safe" to it.properties.safe,
-                        "qr" to qr
-                    )
-                }
-                
+                properties = mapOf(
+                    "safe" to it.properties.safe,
+                    "qr" to qr
+                )   
             )
+
             ResponseEntity<ShortUrlDataOut>(response, h, HttpStatus.CREATED)
         }
 
@@ -129,18 +129,27 @@ class UrlShortenerControllerImpl(
 
     @GetMapping("/{id:(?!api|index).*}/qr")
     override fun qr(@PathVariable id: String, request: HttpServletRequest): ResponseEntity<ByteArrayResource> {
-        println("QR get acabo de llegar: " + id)
-        if (createQrUseCase.get(id) != null){
+
+        // Si el id no existe en la base de datos se devolverá una respuesta de tipo 404 --> comprobado en el caso de uso
+
+        //if (/* la url se esta validando */) {
+        /* val retryAfter = 60 // Calcula el tiempo de espera necesario
             val h = HttpHeaders()
-            h.set(HttpHeaders.CONTENT_TYPE, IMAGE_PNG_VALUE)
-            //h.set(CONTENT_DISPOSITION, "attachment; filename=qr.png")
-            println("QR get: " + ByteArrayResource(createQrUseCase.get(id) , IMAGE_PNG_VALUE))
-            return ResponseEntity<ByteArrayResource>(ByteArrayResource(createQrUseCase.get(id) , IMAGE_PNG_VALUE), h, HttpStatus.OK)
-        } else {
-            return ResponseEntity<ByteArrayResource>(ByteArrayResource(ByteArray(0), IMAGE_PNG_VALUE), HttpStatus.NOT_FOUND)
-        }
+            h.set(HttpHeaders.RETRY_AFTER, retryAfter.toString())
+            return ResponseEntity(h, HttpStatus.BAD_REQUEST)
+        }*/
+
+        //if (/* url exist but is invalid */) {
+            // return estado 403 forbbiden
+        /*  return ResponseEntity(HttpStatus.FORBIDDEN)
+        }*/
+        
+        // Devolver el QR 
+        val h = HttpHeaders()
+        h.set(HttpHeaders.CONTENT_TYPE, IMAGE_PNG_VALUE)
+        return ResponseEntity<ByteArrayResource>(ByteArrayResource(createQrUseCase.get(id) , 
+        IMAGE_PNG_VALUE), h, HttpStatus.OK)
     }
-    
 
     
 }

@@ -23,6 +23,7 @@ class RestResponseEntityExceptionHandler : ResponseEntityExceptionHandler() {
     @ExceptionHandler(value = [RedirectionNotFound::class])
     @ResponseStatus(HttpStatus.NOT_FOUND)
     fun redirectionNotFound(ex: RedirectionNotFound) = ErrorMessage(HttpStatus.NOT_FOUND.value(), ex.message)
+
 }
 
 data class ErrorMessage(
@@ -30,3 +31,4 @@ data class ErrorMessage(
     val message: String?,
     val timestamp: String = DateTimeFormatter.ISO_DATE_TIME.format(OffsetDateTime.now())
 )
+

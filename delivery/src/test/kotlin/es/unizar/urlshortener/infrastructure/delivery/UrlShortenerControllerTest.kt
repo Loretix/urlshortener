@@ -43,6 +43,9 @@ class UrlShortenerControllerTest {
     @MockBean
     private lateinit var createShortUrlUseCase: CreateShortUrlUseCase
 
+    @MockBean
+    private lateinit var createQrUseCase: CreateQrUseCase
+
 
     @Test
     fun `redirectTo returns a redirect when the key exists`() {
@@ -104,5 +107,16 @@ class UrlShortenerControllerTest {
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.statusCode").value(400))
+    }  
+
+    @Test
+    fun `qr returns a qr image when url exist`() {
+        given(createQrUseCase.get("key")).willReturn("http://example.com/".toByteArray())
+
+        mockMvc.perform(get("/{id}/qr", "key"))
+            .andExpect(status().isOk)
+            .andExpect(content().contentType(MediaType.IMAGE_PNG))
+            .andExpect(content().bytes("http://example.com/".toByteArray()))
     }
 }
+

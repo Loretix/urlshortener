@@ -49,9 +49,11 @@ class CreateQrUseCaseImpl(
                     //it.properties.qrGenerated.toByteArray()
                    return qrRepository.get(id)!!
                 } else {
-                    throw RedirectionNotFound(id)
+                    // Existe la url pero no tiene QR: (url invalida? error 403?)
+                    throw InvalidUrlException(id)
                 }
         } else{
+            // NO se encontro el ID: 404 not found
             throw RedirectionNotFound(id)
         }
 

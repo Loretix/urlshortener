@@ -57,6 +57,7 @@ class HttpRequestTest {
     @Test
     fun `redirectTo returns a redirect when the key exists`() {
         val target = shortUrl("http://example.com/").headers.location
+        println("target" + target)
         require(target != null)
         val response = restTemplate.getForEntity(target, String::class.java)
         assertThat(response.statusCode).isEqualTo(HttpStatus.TEMPORARY_REDIRECT)
@@ -76,7 +77,6 @@ class HttpRequestTest {
     @Test
     fun `creates returns a basic redirect if it can compute a hash`() {
         val response = shortUrl("http://example.com/")
-
         assertThat(response.statusCode).isEqualTo(HttpStatus.CREATED)
         assertThat(response.headers.location).isEqualTo(URI.create("http://localhost:$port/f684a3c4"))
         assertThat(response.body?.url).isEqualTo(URI.create("http://localhost:$port/f684a3c4"))
